@@ -1,25 +1,91 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Steps Count"
+author: "Jamal Alikhani"
+date: "May 26, 2017"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+directory <- "C:/Users/Jamal/Dropbox/ML-Data-CS materials/Data Science Specialization- Coursera/Reproducible Research/HW-W2/"
+setwd(directory)
+```
 
 ## Loading and preprocessing the data
 
+```{r}
+df <- read.csv("activity.csv")
+head(df)
+str(df)
+```
 
+The mean total number of steps taken per day:
 
-## What is mean total number of steps taken per day?
+```{r}
+stepPerDay <- aggregate(steps~date, df, sum)
+hist(stepPerDay$steps, xlab = "Steps Per Day", main = "histogram of the total number of steps taken each day")
 
+```
 
+mean and median of the total number of steps taken per day:
 
-## What is the average daily activity pattern?
+```{r}
+summary(stepPerDay$steps)
 
+```
 
+## Average daily activity pattern
+
+```{r}
+stepsByInterval <- aggregate(steps~interval, df, mean, na.rm=TRUE)
+with(stepsByInterval, plot(interval, steps , type="l", xlab = "interval (min)", ylab = "Average step (count)", main = "average daily activity pattern"))
+```
+
+As per above graph, the maximum number of steps happens in `r with(stepsByInterval, interval[which.max(steps)])` min. 
 
 ## Imputing missing values
 
+The total number of missing values are:
+```{r}
+totalNa <- sum(is.na(df$steps))
+```
+`r totalNa`.   
+
+In order to check the bias toward removing the missing rows, the daily average value is imputed.
+
+```{r}
+dfFilled <- transform(df, steps = ifelse(is.na(df$steps), stepsByInterval$steps[match(df$interval, stepsByInterval$interval)], df$steps)) 
+head(dfFilled)
+```
+
+To see the effect of missing vaue imputation, the total number of steps taken each day is compare with the data when missing value are just removed. 
+
+```{r}
+stepsPerDayImputed <- aggregate(steps~date, dfFilled, sum)
+
+hist(stepsPerDayImputed$steps, col = "blue", xlab = "Steps Per Day", main = "Histogram of the total number of steps taken each day")
+hist(stepPerDay$steps, col = "green", add = TRUE, xlab = "Steps Per Day")
+legend("topleft", c("Removed NAs", "Imputed NAs"), col = c("green", "blue"), lwd = 10)
+
+```
+mean and median of the total number of steps taken per day for the imputed data:
+
+```{r}
+summary(stepsPerDayImputed$steps)
+
+```
 
 
-## Are there differences in activity patterns between weekdays and weekends?
+## differences in activity patterns between weekdays and weekends
+
+Creating a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day:
+
+```{r}
+dfFilled$weekDay <- as.factor(ifelse(is.element(weekdays(as.Date(dfFilled$date)),c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")), "weekday", "weekend"))
+
+stepsByInterval <- aggregate(steps ~ interval + weekDay, dfFilled, mean)
+
+library(lattice)
+xyplot(stepsByInterval$steps ~ stepsByInterval$interval|stepsByInterval$weekDay,xlab = "interval (min)", ylab = "Average step (count)", main = "average daily activity pattern for Weekday vs. Weekend", layout=c(1,2), type="l")
+
+```
